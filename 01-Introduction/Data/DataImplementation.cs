@@ -18,8 +18,8 @@ namespace TP.ConcurrentProgramming.Data
     #region ctor
 
     public DataImplementation()
-    {
-      MoveTimer = new Timer(Move, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(100));
+        { // 33 ms to około 30 klatek na sekunde, jest to wartość wystarczająca dla obrazowania kul
+            MoveTimer = new Timer(Move, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(3));
     }
 
     #endregion ctor
@@ -81,9 +81,37 @@ namespace TP.ConcurrentProgramming.Data
 
     private void Move(object? x)
     {
-      foreach (Ball item in BallsList)
-        item.Move(new Vector((RandomGenerator.NextDouble() - 0.5) * 10, (RandomGenerator.NextDouble() - 0.5) * 10));
-    }
+            // obecnie ustawione wartości w programie:
+            // średnica kulki = 20, wymiary obszaru odbicia kul 420 x 400, 4 to grubość obramowania
+            double ballDiameter = 20;
+            double boxBorder = 4;
+
+            double xMin = boxBorder;
+            double xMax = 400 - ballDiameter - boxBorder;
+
+            double yMin = boxBorder;
+            double yMax = 420 - ballDiameter - boxBorder;
+
+
+            foreach (Ball item in BallsList)
+            {
+                // kolejny ruch kulki pozostawiamy w taki sam sposób jak był- jest on losowy
+                Vector randomNextMove = new Vector((RandomGenerator.NextDouble() - 0.5) * 10, (RandomGenerator.NextDouble() - 0.5) * 10);
+
+                // odczytujemy obecną pozycję danej kulki
+                Vector currentPosition = item.getPosition();
+
+                // nowa pozycja kulki to pozycja obecna + wylosowane dodatkowe przesunięcie
+                double xNew = currentPosition.x + randomNextMove.x;
+                double yNew = currentPosition.y + randomNextMove.y;
+
+                // sprawdzamy czy nowo utworzona pozycja nie wyjeżdża poza obrys obszaru
+                xNew = Math.Max(xMin, Math.Min(xNew, xMax));
+                yNew = Math.Max(yMin, Math.Min(yNew, yMax));
+
+                item.Move(new Vector(xNew - currentPosition.x, yNew - currentPosition.y));
+            }
+        }
 
     #endregion private
 
