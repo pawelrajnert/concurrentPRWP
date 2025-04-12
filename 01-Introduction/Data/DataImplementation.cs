@@ -32,10 +32,46 @@ namespace TP.ConcurrentProgramming.Data
                 throw new ObjectDisposedException(nameof(DataImplementation));
             if (upperLayerHandler == null)
                 throw new ArgumentNullException(nameof(upperLayerHandler));
+
             Random random = new Random();
+            double ballDiameter = 20;
+            double boxBorder = 4;
+            double xMin = boxBorder;
+            double xMax = 400 - ballDiameter - boxBorder;
+            double yMin = boxBorder;
+            double yMax = 420 - ballDiameter - boxBorder;
+
+
             for (int i = 0; i < numberOfBalls; i++)
             {
-                Vector startingPosition = new(random.Next(100, 400 - 100), random.Next(100, 400 - 100));
+                Vector startingPosition;
+                bool positionOK;
+
+                int attempts = 0;
+                do
+                {
+                    positionOK = true;
+                    startingPosition = new Vector(random.Next((int)xMin, (int)xMax), random.Next((int)yMin, (int)yMax));
+                    foreach (Ball existingBall in BallsList)
+                    {
+                        Vector otherPosition = existingBall.getPosition();
+
+                        double dx = otherPosition.x - startingPosition.x;
+                        double dy = otherPosition.y - startingPosition.y;
+                        double distance = Math.Sqrt(dx * dx + dy * dy);
+
+                        if(distance < ballDiameter)
+                        {
+                            positionOK = false;
+                            break;
+                        }
+                    }
+                    attempts++;
+                    if (attempts > 100)
+                        throw new Exception("Nie można znalzeźć pozycji startowej");
+
+                } while (!positionOK);
+                
                 Ball newBall = new(startingPosition, startingPosition);
                 upperLayerHandler(startingPosition, newBall);
                 BallsList.Add(newBall);
@@ -108,8 +144,28 @@ namespace TP.ConcurrentProgramming.Data
                 // sprawdzamy czy nowo utworzona pozycja nie wyjeżdża poza obrys obszaru
                 xNew = Math.Max(xMin, Math.Min(xNew, xMax));
                 yNew = Math.Max(yMin, Math.Min(yNew, yMax));
+                Vector newPosition = new Vector(xNew, yNew);
 
-                item.Move(new Vector(xNew - currentPosition.x, yNew - currentPosition.y));
+                bool collison = false;
+                foreach (Ball otherBall in BallsList)
+                {
+                    if (otherBall == item)
+                        continue;
+
+                    Vector otherBallPosition = otherBall.getPosition();
+
+                    double dx = otherBallPosition.x - newPosition.x;
+                    double dy = otherBallPosition.y - newPosition.y;
+                    double distance = Math.Sqrt(dx * dx + dy * dy);
+
+                    if (distance < ballDiameter)
+                    {
+                        collison = true;
+                        break;
+                    }
+                }
+                if (!collison)
+                    item.Move(new Vector(xNew - currentPosition.x, yNew - currentPosition.y));
             }
         }
 
