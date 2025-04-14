@@ -122,17 +122,17 @@ namespace TP.ConcurrentProgramming.Data
             double ballDiameter = 20;
             double boxBorder = 4;
 
-            double xMin = boxBorder;
-            double xMax = 400 - ballDiameter - boxBorder;
+            double xMin = 0;
+            double xMax = 400 - ballDiameter - (boxBorder * 2);
 
-            double yMin = boxBorder;
-            double yMax = 420 - ballDiameter - boxBorder;
+            double yMin = 0;
+            double yMax = 420 - ballDiameter - (boxBorder * 2);
 
 
             foreach (Ball item in BallsList)
             {
-                // kolejny ruch kulki pozostawiamy w taki sam sposób jak był- jest on losowy
-                Vector randomNextMove = new Vector((RandomGenerator.NextDouble() - 0.5) * 10, (RandomGenerator.NextDouble() - 0.5) * 10);
+                // kolejny ruch kulki pozostawiamy w taki sam sposób jak był- jest on losowy, ale mniej chaotyczny niż był domyślnie
+                Vector randomNextMove = new Vector((RandomGenerator.NextDouble() - 0.5) * 4, (RandomGenerator.NextDouble() - 0.5) * 4);
 
                 // odczytujemy obecną pozycję danej kulki
                 Vector currentPosition = item.getPosition();
