@@ -60,9 +60,26 @@ namespace TP.ConcurrentProgramming.BusinessLogic.Test
       }
     }
 
-    #region testing instrumentation
+        [TestMethod]
+        public void startTest()
+        {
+            DataLayerStartFixcure dataLayerFixcure = new();
+            using (BusinessLogicImplementation newInstance = new(dataLayerFixcure))
+            {
+                int balls = 50;
+                newInstance.Start(balls, (position, ball) =>
+                {
+                    Assert.IsNotNull(position);
+                    Assert.IsNotNull(ball);
+                    Assert.IsTrue(position.x >= 0);
+                    Assert.IsTrue(position.y >= 0);
+                });
+            }
+        }
 
-    private class DataLayerConstructorFixcure : Data.DataAbstractAPI
+        #region testing instrumentation
+
+        private class DataLayerConstructorFixcure : Data.DataAbstractAPI
     {
       public override void Dispose()
       { }
