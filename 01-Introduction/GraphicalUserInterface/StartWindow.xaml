@@ -8,10 +8,10 @@
         Title="Start" Height="auto" Width="auto">
 
 
-  <Grid>
-    <TextBlock Text="Podaj liczbę kulek:" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,40" />
-    <TextBox Name="BallCountTextBox" Width="100" HorizontalAlignment="Center" VerticalAlignment="Center" />
-    <Button Content="OK" Width="80" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,40,0,0" Click="OnOkButtonClick" />
-  </Grid>
-  
+    <Grid>
+        <TextBlock Text="Podaj liczbę kulek:" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,0,40" />
+        <TextBox Name="BallCountTextBox" Width="100" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        <Button Content="OK" Width="80" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,40,0,0" Click="OnOkButtonClick" />
+    </Grid>
+
 </Window>
