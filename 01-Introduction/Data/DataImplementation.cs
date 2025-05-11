@@ -37,6 +37,7 @@ namespace TP.ConcurrentProgramming.Data
             Random random = new Random();
             double ballDiameter = 20;
             double boxBorder = 4;
+
             double xMin = boxBorder;
             double xMax = 400 - ballDiameter - boxBorder;
             double yMin = boxBorder;
@@ -75,7 +76,7 @@ namespace TP.ConcurrentProgramming.Data
 
                 } while (!positionOK);
                 
-                Ball newBall = new(startingPosition, velocity);
+                Ball newBall = new(startingPosition, velocity, 10);
                 upperLayerHandler(startingPosition, newBall);
                 lock (zamek) { BallsList.Add(newBall);}
                 Thread ballThread = new Thread(() => Move(newBall));
@@ -125,17 +126,17 @@ namespace TP.ConcurrentProgramming.Data
         private int constMass = 10;
         private readonly object zamek = new object();
         private List<Thread> BallThreads = [];
-
         private void Move(Ball ball)
         {
             double ballDiameter = 20;
             double boxBorder = 4;
 
-            double xMin = 0;
-            double xMax = 400 - ballDiameter - (boxBorder * 2);
+            // Granice obszaru odbicia
+            double xMin = boxBorder;
+            double xMax = 400 - ballDiameter - boxBorder;
 
-            double yMin = 0;
-            double yMax = 420 - ballDiameter - (boxBorder * 2);
+            double yMin = boxBorder;
+            double yMax = 420 - ballDiameter - boxBorder;
 
             while (!Disposed)
             {
@@ -147,11 +148,21 @@ namespace TP.ConcurrentProgramming.Data
                     double xNew = position.x + velocity.x;
                     double yNew = position.y + velocity.y;
 
+                    // Sprawdzenie odbicia od ścianek
+                    if (xNew <= xMin || xNew >= xMax)
+                    {
+                        ball.Velocity = new Vector(-ball.Velocity.x, ball.Velocity.y); // Odbicie w osi X
+                    }
+                    if (yNew <= yMin || yNew >= yMax)
+                    {
+                        ball.Velocity = new Vector(ball.Velocity.x, -ball.Velocity.y); // Odbicie w osi Y
+                    }
+
                     xNew = Math.Max(xMin, Math.Min(xNew, xMax));
                     yNew = Math.Max(yMin, Math.Min(yNew, yMax));
                     Vector newPosition = new Vector(xNew, yNew);
 
-                    bool collision = false;
+                    // Sprawdzenie kolizji z innymi piłkami
                     foreach (Ball otherBall in BallsList)
                     {
                         if (otherBall == ball)
@@ -164,18 +175,54 @@ namespace TP.ConcurrentProgramming.Data
 
                         if (distance < ballDiameter)
                         {
-                            collision = true;
-                            break;
+                            // Oblicz nowe prędkości po zderzeniu
+                            Vector v1 = (Vector)ball.Velocity;
+                            Vector v2 = (Vector)otherBall.Velocity;
+
+                            Vector p1 = ball.getPosition();
+                            Vector p2 = otherBall.getPosition();
+
+                            Vector deltaP = new Vector(p1.x - p2.x, p1.y - p2.y);
+                            Vector deltaV = new Vector(v1.x - v2.x, v1.y - v2.y);
+
+                            double distanceSquared = deltaP.x * deltaP.x + deltaP.y * deltaP.y;
+                            double dotProduct = deltaV.x * deltaP.x + deltaV.y * deltaP.y;
+
+                            if (distanceSquared > 0) // Uniknięcie dzielenia przez zero
+                            {
+                                Vector v1New = new Vector(
+                                    v1.x - (dotProduct / distanceSquared) * deltaP.x,
+                                    v1.y - (dotProduct / distanceSquared) * deltaP.y
+                                );
+
+                                Vector v2New = new Vector(
+                                    v2.x - (dotProduct / distanceSquared) * -deltaP.x,
+                                    v2.y - (dotProduct / distanceSquared) * -deltaP.y
+                                );
+
+                                ball.Velocity = v1New;
+                                otherBall.Velocity = v2New;
+
+                                // Przesunięcie piłek, aby zapobiec ich "przenikaniu"
+                                double overlap = ballDiameter - distance;
+                                Vector correction = new Vector(
+                                    (overlap / 2) * (deltaP.x / Math.Sqrt(distanceSquared)),
+                                    (overlap / 2) * (deltaP.y / Math.Sqrt(distanceSquared))
+                                );
+
+                                ball.Move(new Vector(-correction.x, -correction.y));
+                                otherBall.Move(new Vector(correction.x, correction.y));
+                            }
                         }
                     }
-                    if (!collision)
-                    {
-                        ball.Move(new Vector(velocity.x, velocity.y));
-                    }
+
+                    // Aktualizacja pozycji piłki
+                    ball.Move(new Vector(ball.Velocity.x, ball.Velocity.y));
                 }
-                Thread.Sleep(33);
+                Thread.Sleep(33); // Odświeżanie co 33 ms
             }
         }
+
 
         #endregion private
 
