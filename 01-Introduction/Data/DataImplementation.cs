@@ -10,6 +10,7 @@
 
 using System;
 using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace TP.ConcurrentProgramming.Data
 {
@@ -18,8 +19,8 @@ namespace TP.ConcurrentProgramming.Data
         #region ctor
 
         public DataImplementation()
-        { // 33 ms to około 30 klatek na sekunde, jest to wartość wystarczająca dla obrazowania kul
-            MoveTimer = new Timer(Move, null, TimeSpan.Zero, TimeSpan.FromMilliseconds(33));
+        {
+            
         }
 
         #endregion ctor
@@ -46,7 +47,7 @@ namespace TP.ConcurrentProgramming.Data
             {
                 Vector startingPosition;
                 bool positionOK;
-
+                Vector velocity = new Vector((random.NextDouble()/2 * 5), (random.NextDouble()/2 *5));
                 int attempts = 0;
                 do
                 {
@@ -55,6 +56,7 @@ namespace TP.ConcurrentProgramming.Data
                     foreach (Ball existingBall in BallsList)
                     {
                         Vector otherPosition = existingBall.getPosition();
+                        
 
                         double dx = otherPosition.x - startingPosition.x;
                         double dy = otherPosition.y - startingPosition.y;
@@ -65,6 +67,7 @@ namespace TP.ConcurrentProgramming.Data
                             positionOK = false;
                             break;
                         }
+
                     }
                     attempts++;
                     if (attempts > 100)
@@ -72,11 +75,19 @@ namespace TP.ConcurrentProgramming.Data
 
                 } while (!positionOK);
                 
-                Ball newBall = new(startingPosition, startingPosition);
+                Ball newBall = new(startingPosition, velocity);
                 upperLayerHandler(startingPosition, newBall);
-                BallsList.Add(newBall);
+                lock (zamek) { BallsList.Add(newBall);}
+                Thread ballThread = new Thread(() => Move(newBall));
+                ballThread.IsBackground = true;
+                lock (zamek)
+                {
+                    BallThreads.Add(ballThread);
+                }
+                ballThread.Start();
             }
         }
+
 
         #endregion DataAbstractAPI
 
@@ -88,7 +99,6 @@ namespace TP.ConcurrentProgramming.Data
             {
                 if (disposing)
                 {
-                    MoveTimer.Dispose();
                     BallsList.Clear();
                 }
                 Disposed = true;
@@ -108,17 +118,16 @@ namespace TP.ConcurrentProgramming.Data
 
         #region private
 
-        //private bool disposedValue;
         private bool Disposed = false;
-
-        private readonly Timer MoveTimer;
         private Random RandomGenerator = new();
         private List<Ball> BallsList = [];
+        //private int[] masses = new int[] { 5, 10, 15 };
+        private int constMass = 10;
+        private readonly object zamek = new object();
+        private List<Thread> BallThreads = [];
 
-        private void Move(object? x)
+        private void Move(Ball ball)
         {
-            // obecnie ustawione wartości w programie:
-            // średnica kulki = 20, wymiary obszaru odbicia kul 420 x 400, 4 to grubość obramowania
             double ballDiameter = 20;
             double boxBorder = 4;
 
@@ -128,44 +137,43 @@ namespace TP.ConcurrentProgramming.Data
             double yMin = 0;
             double yMax = 420 - ballDiameter - (boxBorder * 2);
 
-
-            foreach (Ball item in BallsList)
+            while (!Disposed)
             {
-                // kolejny ruch kulki pozostawiamy w taki sam sposób jak był- jest on losowy, ale mniej chaotyczny niż był domyślnie
-                Vector randomNextMove = new Vector((RandomGenerator.NextDouble() - 0.5) * 4, (RandomGenerator.NextDouble() - 0.5) * 4);
-
-                // odczytujemy obecną pozycję danej kulki
-                Vector currentPosition = item.getPosition();
-
-                // nowa pozycja kulki to pozycja obecna + wylosowane dodatkowe przesunięcie
-                double xNew = currentPosition.x + randomNextMove.x;
-                double yNew = currentPosition.y + randomNextMove.y;
-
-                // sprawdzamy czy nowo utworzona pozycja nie wyjeżdża poza obrys obszaru
-                xNew = Math.Max(xMin, Math.Min(xNew, xMax));
-                yNew = Math.Max(yMin, Math.Min(yNew, yMax));
-                Vector newPosition = new Vector(xNew, yNew);
-
-                bool collison = false;
-                foreach (Ball otherBall in BallsList)
+                lock (zamek)
                 {
-                    if (otherBall == item)
-                        continue;
+                    Vector position = ball.getPosition();
+                    IVector velocity = ball.Velocity;
 
-                    Vector otherBallPosition = otherBall.getPosition();
+                    double xNew = position.x + velocity.x;
+                    double yNew = position.y + velocity.y;
 
-                    double dx = otherBallPosition.x - newPosition.x;
-                    double dy = otherBallPosition.y - newPosition.y;
-                    double distance = Math.Sqrt(dx * dx + dy * dy);
+                    xNew = Math.Max(xMin, Math.Min(xNew, xMax));
+                    yNew = Math.Max(yMin, Math.Min(yNew, yMax));
+                    Vector newPosition = new Vector(xNew, yNew);
 
-                    if (distance < ballDiameter)
+                    bool collision = false;
+                    foreach (Ball otherBall in BallsList)
                     {
-                        collison = true;
-                        break;
+                        if (otherBall == ball)
+                            continue;
+
+                        Vector otherPosition = otherBall.getPosition();
+                        double dx = otherPosition.x - newPosition.x;
+                        double dy = otherPosition.y - newPosition.y;
+                        double distance = Math.Sqrt(dx * dx + dy * dy);
+
+                        if (distance < ballDiameter)
+                        {
+                            collision = true;
+                            break;
+                        }
+                    }
+                    if (!collision)
+                    {
+                        ball.Move(new Vector(velocity.x, velocity.y));
                     }
                 }
-                if (!collison)
-                    item.Move(new Vector(xNew - currentPosition.x, yNew - currentPosition.y));
+                Thread.Sleep(33);
             }
         }
 
