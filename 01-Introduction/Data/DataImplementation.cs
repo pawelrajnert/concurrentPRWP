@@ -75,8 +75,7 @@ namespace TP.ConcurrentProgramming.Data
                         throw new Exception("Nie można znalzeźć pozycji startowej");
 
                 } while (!positionOK);
-                
-                Ball newBall = new(startingPosition, velocity, 10);
+                Ball newBall = new(startingPosition, velocity, 10); 
                 upperLayerHandler(startingPosition, newBall);
                 lock (zamek) { BallsList.Add(newBall);}
                 Thread ballThread = new Thread(() => Move(newBall));
@@ -131,6 +130,7 @@ namespace TP.ConcurrentProgramming.Data
             double ballDiameter = 20;
             double boxBorder = 4;
 
+            // Granice obszaru odbicia
             double xMin = boxBorder;
             double xMax = 400 - ballDiameter - boxBorder;
 
@@ -147,20 +147,21 @@ namespace TP.ConcurrentProgramming.Data
                     double xNew = position.x + velocity.x;
                     double yNew = position.y + velocity.y;
 
+                    // Sprawdzenie odbicia od ścianek
                     if (xNew <= xMin || xNew >= xMax)
                     {
-                        ball.Velocity = new Vector(-ball.Velocity.x, ball.Velocity.y);
+                        ball.Velocity = new Vector(-ball.Velocity.x, ball.Velocity.y); // Odbicie w osi X
                     }
-
                     if (yNew <= yMin || yNew >= yMax)
                     {
-                        ball.Velocity = new Vector(ball.Velocity.x, -ball.Velocity.y);
+                        ball.Velocity = new Vector(ball.Velocity.x, -ball.Velocity.y); // Odbicie w osi Y
                     }
 
                     xNew = Math.Max(xMin, Math.Min(xNew, xMax));
                     yNew = Math.Max(yMin, Math.Min(yNew, yMax));
                     Vector newPosition = new Vector(xNew, yNew);
 
+                    // Sprawdzenie kolizji z innymi piłkami
                     foreach (Ball otherBall in BallsList)
                     {
                         if (otherBall == ball)
@@ -169,30 +170,48 @@ namespace TP.ConcurrentProgramming.Data
                         Vector otherPosition = otherBall.getPosition();
                         double dx = newPosition.x - otherPosition.x;
                         double dy = newPosition.y - otherPosition.y;
-                        double distance = dx * dx + dy * dy;
-                        double pom = ballDiameter * ballDiameter;
+                        double distanceSquared = dx * dx + dy * dy;
+                        double ballDiameterSquared = ballDiameter * ballDiameter;
 
-                        if (distance < pom && distance > 0)
+                        if (distanceSquared < ballDiameterSquared && distanceSquared > 0)
                         {
-                            double dist = Math.Sqrt(distance);
-                            Vector direction = new Vector(dx / dist, dy / dist);
+                            double distance = Math.Sqrt(distanceSquared);
+                            Vector direction = new Vector(dx / distance, dy / distance);
 
-                            Vector vel = new Vector(ball.Velocity.x - otherBall.Velocity.x, ball.Velocity.y - otherBall.Velocity.y);
+                            Vector relativeVelocity = new Vector(
+                                ball.Velocity.x - otherBall.Velocity.x,
+                                ball.Velocity.y - otherBall.Velocity.y
+                            );
 
-                            double currentVel = vel.x * direction.x + vel.y * direction.y;
+                            double velocityAlongNormal = relativeVelocity.x * direction.x + relativeVelocity.y * direction.y;
 
-                            if (currentVel < 0)
+                            if (velocityAlongNormal < 0) // Kolizja tylko jeśli piłki się zbliżają
                             {
-                                double bounce = -currentVel;
-                                Vector bounceBall = new Vector(direction.x * bounce, direction.y * bounce);
+                                // Oblicz nowe prędkości po zderzeniu
+                                double m1 = ball.Mass;
+                                double m2 = otherBall.Mass;
 
-                                ball.Velocity = new Vector(ball.Velocity.x + bounceBall.x, ball.Velocity.y + bounceBall.y);
-                                otherBall.Velocity = new Vector(otherBall.Velocity.x - bounceBall.x, otherBall.Velocity.y - bounceBall.y);
+                                double impulse = (2 * velocityAlongNormal) / (m1 + m2);
+                                Vector impulseVector = new Vector(
+                                    impulse * direction.x,
+                                    impulse * direction.y
+                                );
 
-                                double overlap = ballDiameter - dist;
+                                ball.Velocity = new Vector(
+                                    ball.Velocity.x - impulseVector.x * m2,
+                                    ball.Velocity.y - impulseVector.y * m2
+                                );
+
+                                otherBall.Velocity = new Vector(
+                                    otherBall.Velocity.x + impulseVector.x * m1,
+                                    otherBall.Velocity.y + impulseVector.y * m1
+                                );
+
+                                // Przesunięcie piłek, aby zapobiec ich "przenikaniu"
+                                double overlap = ballDiameter - distance;
                                 Vector correction = new Vector(
-                                    (overlap / 2) * (direction.x),
-                                    (overlap / 2) * (direction.y)
+                                    (overlap / 2) * direction.x,
+                                    (overlap / 2) * direction.y
                                 );
 
                                 ball.Move(new Vector(-correction.x, -correction.y));
@@ -201,11 +220,13 @@ namespace TP.ConcurrentProgramming.Data
                         }
                     }
 
+                    // Aktualizacja pozycji piłki
                     ball.Move(new Vector(ball.Velocity.x, ball.Velocity.y));
                 }
-                Thread.Sleep(10);
+                Thread.Sleep(10); // Odświeżanie co 10 ms
             }
         }
+
 
 
 
