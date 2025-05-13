@@ -131,16 +131,14 @@ namespace TP.ConcurrentProgramming.Data
             double boxBorder = 4;
 
             // Granice obszaru odbicia
-            double xMin = boxBorder;
-            double xMax = 400 - ballDiameter - boxBorder;
+            double xMin = 0;
+            double xMax = 400 - ballDiameter - boxBorder * 2 + 1;
 
-            double yMin = boxBorder;
-            double yMax = 420 - ballDiameter - boxBorder;
+            double yMin = 0;
+            double yMax = 420 - ballDiameter - boxBorder * 2 + 1;
 
             while (!Disposed)
             {
-                lock (zamek)
-                {
                     Vector position = ball.getPosition();
                     IVector velocity = ball.Velocity;
 
@@ -160,9 +158,9 @@ namespace TP.ConcurrentProgramming.Data
                     xNew = Math.Max(xMin, Math.Min(xNew, xMax));
                     yNew = Math.Max(yMin, Math.Min(yNew, yMax));
                     Vector newPosition = new Vector(xNew, yNew);
-
-                    // Sprawdzenie kolizji z innymi piłkami
-                    foreach (Ball otherBall in BallsList)
+                    lock(zamek) {
+                // Sprawdzenie kolizji z innymi piłkami
+                foreach (Ball otherBall in BallsList)
                     {
                         if (otherBall == ball)
                             continue;
